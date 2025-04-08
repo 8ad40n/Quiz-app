@@ -1,5 +1,5 @@
 {
-  "name": "quiz-app-practice",
+  "name": "quiz-app",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,7 +11,6 @@
   "dependencies": {
     "@ant-design/nextjs-registry": "^1.0.2",
     "antd": "^5.24.6",
-    "axios": "^1.8.4",
     "firebase": "^11.6.0",
     "lucide-react": "^0.487.0",
     "next": "15.2.4",
@@ -20,10 +19,10 @@
     "sonner": "^2.0.3"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "tailwindcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
-    "tailwindcss": "^4"
+    "@eslint/eslintrc": "^3"
   }
 }
