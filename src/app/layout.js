@@ -1,4 +1,5 @@
 import Navbar from "@/components/Header/Navbar";
+import AuthProvider from "@/providers/AuthProvider";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
@@ -25,12 +26,15 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gradient-to-br from-blue-50 to-indigo-100`}
       >
-        <AntdRegistry>
-        <Toaster />
-          <div className="container mx-auto">
-            <Navbar />
-            {children}</div>
-        </AntdRegistry>
+        <AuthProvider>
+          <AntdRegistry>
+            <Toaster />
+            <div className="container mx-auto">
+              <Navbar />
+              {children}
+            </div>
+          </AntdRegistry>
+        </AuthProvider>
       </body>
     </html>
   );
