@@ -1,14 +1,18 @@
 "use client";
+import { AuthContext } from "@/providers/AuthProvider";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import { Button, Card, Form, Input, message, Select, Space, Typography } from "antd";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { toast } from "sonner";
 import { useFirestore } from "../../../hooks/useFirestore";
 
 const { Title } = Typography;
 
 export default function AddQuiz() {
+  const { user } = useContext(AuthContext);
+
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -17,6 +21,17 @@ export default function AddQuiz() {
   const questionsDb = useFirestore("questions");
   const optionsDb = useFirestore("options");
 
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col gap-4 items-center justify-center">
+        <p style={{ fontSize: "16px", color: "#4B5563", textAlign:"center", fontWeight: "bold" }}>
+          Please log in to access the quiz.
+        </p>
+        <Button><Link href="/login">Go back to Login</Link></Button>
+      </div>
+    );
+  }
+  
   const handleSubmit = async (values) => {
     console.log(values)
     setLoading(true);

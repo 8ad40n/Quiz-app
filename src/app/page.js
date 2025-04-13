@@ -1,4 +1,4 @@
-import { Brain, PlayCircle, PlusCircle } from 'lucide-react';
+import { Brain, PlayCircle, PlusCircle, Trophy } from 'lucide-react';
 import Link from 'next/link';
 
 export default function Home() {
@@ -17,7 +17,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
           {/* Take Quiz */}
           <Link href="/quiz" className="transform transition-all duration-300 hover:scale-105">
             <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow h-full">
@@ -29,6 +29,21 @@ export default function Home() {
               </h3>
               <p className="text-gray-600 text-center">
                 Challenge yourself with our collection of quizzes across various topics
+              </p>
+            </div>
+          </Link>
+
+          {/* Leaderboard */}
+          <Link href="/leaderboard" className="transform transition-all duration-300 hover:scale-105">
+            <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow h-full">
+              <div className="flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-full mb-6 mx-auto">
+                <Trophy className="h-8 w-8 text-yellow-600" />
+              </div>
+              <h3 className="text-2xl font-semibold text-gray-900 mb-3 text-center">
+                Leaderboard
+              </h3>
+              <p className="text-gray-600 text-center">
+                See how you rank against other quiz takers
               </p>
             </div>
           </Link>
