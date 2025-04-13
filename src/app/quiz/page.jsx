@@ -1,16 +1,28 @@
 "use client";
-import { useFirestore } from '@/hooks/useFirestore';
-import { Button, Card, Divider, Progress, Radio, Space, Typography } from 'antd';
-import { Brain, Loader, Timer, Trophy } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useFirestore } from "@/hooks/useFirestore";
+import { AuthContext } from "@/providers/AuthProvider";
+import {
+  Button,
+  Card,
+  Divider,
+  Progress,
+  Radio,
+  Space,
+  Typography,
+} from "antd";
+import { Brain, Loader, Timer, Trophy } from "lucide-react";
+import Link from "next/link";
+import { useContext, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 const { Title, Text } = Typography;
 
 const QUIZ_DURATION = 30; // Duration in seconds
-const STORAGE_KEY = 'quiz_state';
-
+const STORAGE_KEY = "quiz_state";
 
 function Quiz() {
+  const { user } = useContext(AuthContext);
+
   const [topics, setTopics] = useState([]);
   const [questions, setQuestions] = useState([]);
   const [options, setOptions] = useState([]);
@@ -25,6 +37,9 @@ function Quiz() {
   const topicsDb = useFirestore("topics");
   const questionsDb = useFirestore("questions");
   const optionsDb = useFirestore("options");
+
+  const userQuiz = useFirestore("user_quiz");
+
 
   // Load saved state on initial mount
   useEffect(() => {
@@ -53,7 +68,7 @@ function Quiz() {
         selectedTopic,
         userAnswers,
         timeLeft,
-        startTime: Date.now()
+        startTime: Date.now(),
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } else {
@@ -73,7 +88,7 @@ function Quiz() {
         setQuestions(questionsData);
         setOptions(optionsData);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
@@ -99,9 +114,17 @@ function Quiz() {
     return () => clearInterval(interval);
   }, [timerActive, timeLeft]);
 
-  const topicQuestions = questions.filter(q => q.topic_id === selectedTopic);
+  const topicQuestions = questions.filter((q) => q.topic_id === selectedTopic);
 
-  const handleTopicSelect = (topicId) => {
+  const handleTopicSelect = async(topicId) => {
+    const checkAlreadySubmitted = await userQuiz.getByField("user.id", user.uid);
+    const checkTopic = checkAlreadySubmitted.filter(
+      (quiz) => quiz.topic_id === topicId
+    );
+    if (checkTopic.length > 0) {
+      toast.error("You have already submitted the quiz for this topic.");
+      return;
+    }
     setSelectedTopic(topicId);
     setUserAnswers([]);
     setShowResults(false);
@@ -110,22 +133,30 @@ function Quiz() {
   };
 
   const handleAnswerSelect = (questionId, optionId) => {
-    const existingAnswerIndex = userAnswers.findIndex(a => a.questionId === questionId);
-    
+    const existingAnswerIndex = userAnswers.findIndex(
+      (a) => a.questionId === questionId
+    );
+
     if (existingAnswerIndex !== -1) {
       const newAnswers = [...userAnswers];
-      newAnswers[existingAnswerIndex] = { questionId, selectedOptionId: optionId };
+      newAnswers[existingAnswerIndex] = {
+        questionId,
+        selectedOptionId: optionId,
+      };
       setUserAnswers(newAnswers);
     } else {
-      setUserAnswers([...userAnswers, { questionId, selectedOptionId: optionId }]);
+      setUserAnswers([
+        ...userAnswers,
+        { questionId, selectedOptionId: optionId },
+      ]);
     }
   };
 
   const calculateScore = () => {
     let score = 0;
-    userAnswers.forEach(answer => {
+    userAnswers.forEach((answer) => {
       const correctOption = options.find(
-        opt => opt.question_id === answer.questionId && opt.is_correct
+        (opt) => opt.question_id === answer.questionId && opt.is_correct
       );
       if (correctOption && correctOption.id === answer.selectedOptionId) {
         score++;
@@ -133,18 +164,45 @@ function Quiz() {
     });
     return score;
   };
-
-  const handleSubmit = () => {
+  const handleSubmit = async() => {
     setTimerActive(false);
     setShowResults(true);
     localStorage.removeItem(STORAGE_KEY);
+    try{
+      await userQuiz.add({
+        user: {
+          id: user.uid,
+          name: user.displayName,
+          email: user.email,
+          photo: user.photoURL,
+        },
+        topic_id: selectedTopic,
+        score: calculateScore(),
+        total_questions: topicQuestions.length,
+        quiz_dateTime: new Date().toISOString(),
+      });
+    }
+    catch(error){
+      console.error("Error saving quiz result:", error);
+    }
   };
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col gap-4 items-center justify-center">
+        <Text style={{ fontSize: "16px", color: "#4B5563", textAlign:"center", fontWeight: "bold" }}>
+          Please log in to access the quiz.
+        </Text>
+        <Button><Link href="/login">Go back to Login</Link></Button>
+      </div>
+    );
+  }
 
   if (!selectedTopic) {
     return (
@@ -154,18 +212,20 @@ function Quiz() {
             <div className="flex justify-center mb-4">
               <Brain className="w-16 h-16 text-indigo-600" />
             </div>
-            <Title level={1} className="mb-4">Welcome to the Quiz App</Title>
-            <Text className="text-lg text-gray-600">Choose a topic to start your quiz journey!</Text>
+            <Title level={1} className="mb-4">
+              Welcome to the Quiz App
+            </Title>
+            <Text className="text-lg text-gray-600">
+              Choose a topic to start your quiz journey!
+            </Text>
           </div>
-          {
-            loading && (
-              <div className="flex items-center justify-center mb-4">
-                <Loader className="w-16 h-16 text-indigo-600 animate-spin" />
-              </div>
-            )
-          }
+          {loading && (
+            <div className="flex items-center justify-center mb-4">
+              <Loader className="w-16 h-16 text-indigo-600 animate-spin" />
+            </div>
+          )}
           <div className="grid md:grid-cols-2 lg:grid-cols-3 justify-center items-center gap-6">
-            {topics.map(topic => (
+            {topics.map((topic) => (
               <Card
                 key={topic.id}
                 hoverable
@@ -205,7 +265,8 @@ function Quiz() {
                 Time Remaining: {formatTime(timeLeft)}
               </Text>
               <Text className="text-lg">
-                Questions Attempted: {attemptedQuestions} out of {totalQuestions}
+                Questions Attempted: {attemptedQuestions} out of{" "}
+                {totalQuestions}
               </Text>
             </div>
           </div>
@@ -214,9 +275,15 @@ function Quiz() {
 
           <Space direction="vertical" className="w-full">
             {topicQuestions.map((question, index) => {
-              const userAnswer = userAnswers.find(a => a.questionId === question.id);
-              const correctOption = options.find(opt => opt.question_id === question.id && opt.is_correct);
-              const userSelectedOption = options.find(opt => opt.id === userAnswer?.selectedOptionId);
+              const userAnswer = userAnswers.find(
+                (a) => a.questionId === question.id
+              );
+              const correctOption = options.find(
+                (opt) => opt.question_id === question.id && opt.is_correct
+              );
+              const userSelectedOption = options.find(
+                (opt) => opt.id === userAnswer?.selectedOptionId
+              );
 
               return (
                 <Card key={question.id} size="small" className="w-full">
@@ -226,17 +293,24 @@ function Quiz() {
                   <Space direction="vertical">
                     {userSelectedOption ? (
                       <Text>
-                        Your answer:{' '}
-                        <Text type={userSelectedOption?.is_correct ? 'success' : 'danger'}>
+                        Your answer:{" "}
+                        <Text
+                          type={
+                            userSelectedOption?.is_correct
+                              ? "success"
+                              : "danger"
+                          }
+                        >
                           {userSelectedOption?.text}
                         </Text>
                       </Text>
                     ) : (
                       <Text type="danger">Not attempted</Text>
                     )}
-                    {(!userSelectedOption || !userSelectedOption?.is_correct) && (
+                    {(!userSelectedOption ||
+                      !userSelectedOption?.is_correct) && (
                       <Text>
-                        Correct answer:{' '}
+                        Correct answer:{" "}
                         <Text type="success">{correctOption?.text}</Text>
                       </Text>
                     )}
@@ -247,11 +321,19 @@ function Quiz() {
           </Space>
 
           <Button
+            type="link"
+            block
+            size="large"
+            className="mt-4"
+          >
+            <Link href="/leaderboard">View Leaderboard</Link>
+          </Button>
+          <Button
             type="primary"
             block
             size="large"
             onClick={() => setSelectedTopic(null)}
-            className="mt-8"
+            className="mt-4"
           >
             Try Another Topic
           </Button>
@@ -265,11 +347,13 @@ function Quiz() {
       <Card className="mx-auto">
         <div className="flex justify-between items-center mb-8">
           <Title level={2} className="mb-0">
-            {topics.find(t => t.id === selectedTopic)?.name}
+            {topics.find((t) => t.id === selectedTopic)?.name}
           </Title>
           <div className="flex items-center gap-2 text-lg font-semibold">
             <Timer className="w-6 h-6 text-indigo-600" />
-            <span className={`${timeLeft <= 10 ? 'text-red-600' : 'text-gray-700'}`}>
+            <span
+              className={`${timeLeft <= 10 ? "text-red-600" : "text-gray-700"}`}
+            >
               {formatTime(timeLeft)}
             </span>
           </div>
@@ -277,8 +361,12 @@ function Quiz() {
 
         <Space direction="vertical" className="w-full" size="large">
           {topicQuestions.map((question, index) => {
-            const questionOptions = options.filter(option => option.question_id === question.id);
-            const userAnswer = userAnswers.find(a => a.questionId === question.id);
+            const questionOptions = options.filter(
+              (option) => option.question_id === question.id
+            );
+            const userAnswer = userAnswers.find(
+              (a) => a.questionId === question.id
+            );
 
             return (
               <Card key={question.id} size="small" className="w-full">
@@ -286,13 +374,19 @@ function Quiz() {
                   {index + 1}. {question.text}
                 </Title>
                 <Radio.Group
-                  onChange={(e) => handleAnswerSelect(question.id, e.target.value)}
+                  onChange={(e) =>
+                    handleAnswerSelect(question.id, e.target.value)
+                  }
                   value={userAnswer?.selectedOptionId}
                   className="w-full"
                 >
                   <Space direction="vertical" className="w-full">
-                    {questionOptions.map(option => (
-                      <Radio key={option.id} value={option.id} className="w-full">
+                    {questionOptions.map((option) => (
+                      <Radio
+                        key={option.id}
+                        value={option.id}
+                        className="w-full"
+                      >
                         {option.text}
                       </Radio>
                     ))}
